@@ -57,8 +57,10 @@ def get_env_kwargs(env_name):
     elif env_name == 'LunarLander-v3':
         def lunar_empty_wrapper(env):
             return env
+        print("reached here:")
+        print(env_name)
         kwargs = {
-            'optimizer_spec': lander_optimizer(),
+            'optimizer_spec': lander_optimizer(1e-3),
             'q_func': create_lander_q_network,
             'replay_buffer_size': 50000,
             'batch_size': 32,
@@ -158,13 +160,13 @@ def atari_optimizer(num_timesteps):
     )
 
 
-def lander_optimizer():
+def lander_optimizer(lander_lr):
     return OptimizerSpec(
         constructor=optim.Adam,
         optim_kwargs=dict(
             lr=1,
         ),
-        learning_rate_schedule=lambda epoch: 1e-3,  # keep init learning rate
+        learning_rate_schedule=lambda epoch: lander_lr,  # keep init learning rate
     )
 
 

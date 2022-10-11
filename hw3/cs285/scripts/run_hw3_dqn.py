@@ -4,6 +4,7 @@ import time
 from cs285.infrastructure.rl_trainer import RL_Trainer
 from cs285.agents.dqn_agent import DQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
+from cs285.infrastructure.dqn_utils import lander_optimizer
 
 
 class Q_Trainer(object):
@@ -17,8 +18,20 @@ class Q_Trainer(object):
             'train_batch_size': params['batch_size'],
             'double_q': params['double_q'],
         }
-
         env_args = get_env_kwargs(params['env_name'])
+        # Print optimizer_spec before
+        print("Before")
+        temp1 = env_args['optimizer_spec'].learning_rate_schedule
+        print(temp1(4)) # Print the learning rate 
+
+        # Added such that a lr can be specified for the lunar lander
+        if params['env_name'] == 'LunarLander-v3':
+            env_args['optimizer_spec'] = lander_optimizer(params['lunar_lr'])
+        
+        # Print optimizer_spec before
+        print("After")
+        temp2 = env_args['optimizer_spec'].learning_rate_schedule
+        print(temp2(4)) # Print the learning rate 
 
         self.agent_params = {**train_args, **env_args, **params}
 
@@ -64,11 +77,17 @@ def main():
 
     parser.add_argument('--save_params', action='store_true')
 
+    # Added lunar lander learning rate
+    parser.add_argument('--lunar_lr', type=float, default=1e-3)
+
     args = parser.parse_args()
 
     # convert to dictionary
     params = vars(args)
     params['video_log_freq'] = -1 # This param is not used for DQN
+
+    # Print the learning rate for the lunar critic 
+    print(params['lunar_lr'])
     ##################################
     ### CREATE DIRECTORY FOR LOGGING
     ##################################
