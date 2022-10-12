@@ -203,7 +203,7 @@ for i in range(Y_s.shape[0]):
     AddLinePlot(X,Y_s[i],input_labels[i],colors[i])
 
 # Add a danky legend
-leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower left")
 frame = leg.get_frame()
 frame.set_facecolor('white')
 frame.set_edgecolor('black')
