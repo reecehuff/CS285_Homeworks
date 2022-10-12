@@ -222,4 +222,48 @@ plt.yticks(fontsize=y_bayes_font_size)
 plt.savefig("figures/question3.png", dpi=600)
 plt.show()
     
+#%% Question 4
 
+# Read in the data
+#-----------Across the variation of learning rate
+logdir = base_dir + 'q4_*/events*'
+eventfiles = sorted(glob.glob(logdir), reverse=True)
+for i, file in enumerate(eventfiles):
+    print(i)
+    print(file)
+    X, Y = get_section_results(file)
+    if i == 0:
+        Y_s = Y;
+    else:
+        Y_s = np.vstack((Y_s,Y))
+
+# Input label 
+input_labels = [r"-ntu 1 -ngsptu 100", r"-ntu 10 -ngsptu 10", r"-ntu 100 -ngsptu 1"]
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Add line plot
+X = X / 1000 # Convert to thousands
+for i in range(Y_s.shape[0]):
+    AddLinePlot(X,Y_s[i],input_labels[i],colors[i])
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
+plt.title(r"Returns in \textbf{Lunar Lander} Environment",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/question3.png", dpi=600)
+plt.show()
