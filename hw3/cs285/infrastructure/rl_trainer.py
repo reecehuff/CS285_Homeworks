@@ -278,7 +278,8 @@ class RL_Trainer(object):
             all_logs = self.train_agent()
 
             # log/save
-            if self.logvideo or self.logmetrics:
+            # if self.logvideo or self.logmetrics:
+            if self.logmetrics:
                 # perform logging
                 print('\nBeginning logging procedure...')
                 self.perform_sac_logging(itr, episode_stats, eval_policy, train_video_paths, all_logs)
@@ -303,7 +304,7 @@ class RL_Trainer(object):
         """
         # TODO: get this from hw1 or hw2
         if itr == 0:
-            if load_initial_expertdata:
+            if initial_expertdata:
                 paths = pickle.load(open(self.params['expert_data'], 'rb'))
                 return paths, 0, None
             else:
@@ -316,9 +317,9 @@ class RL_Trainer(object):
             self.env, collect_policy, num_transitions_to_sample, self.params['ep_len'])
     
         train_video_paths = None
-        if self.log_video:
-            print('\nCollecting train rollouts to be used for saving videos...')
-            train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
+        # if self.log_video:
+        #     print('\nCollecting train rollouts to be used for saving videos...')
+        #     train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
     
         return paths, envsteps_this_batch, train_video_paths
 

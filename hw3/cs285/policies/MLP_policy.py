@@ -1,5 +1,6 @@
 import abc
 import itertools
+from syslog import LOG_PERROR
 from torch import nn
 from torch.nn import functional as F
 from torch import optim
@@ -132,4 +133,15 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
 class MLPPolicyAC(MLPPolicy):
     def update(self, observations, actions, adv_n=None):
         # TODO: update the policy and return the loss
+        observations = ptu.from_numpy(observations)
+        actions      = ptu.from_numpy(actions)
+        adv_n        = ptu.from_numpy(adv_n)
+
+        log_probs    = self(observations).log_prob(actions)
+        loss         = -1 * torch.sum(log_probs * adv_n)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
         return loss.item()
