@@ -56,6 +56,20 @@ class SACCritic(nn.Module, BaseCritic):
 
     def forward(self, obs: torch.Tensor, action: torch.Tensor):
         # TODO: return the two q values
+        # print(obs.size())
+        # print(action.size())
+        # print(self.ob_dim)
+        # print(self.ac_dim)
+        tuple = torch.cat([obs.T,action.T]).T
+        value1 = self.Q1(tuple)
+        value2 = self.Q2(tuple)
+        values = torch.cat([value1, value2],1)
+        # print(values)
+        # print(values.size())
+
+        # Just to be specific, we are expected for the values to be a torch tensor
+        # that is [batch_size by 2] where the two comes from the two seperate Q-values 
+
         return values
 
 
