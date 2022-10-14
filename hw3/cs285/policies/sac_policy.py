@@ -36,12 +36,37 @@ class MLPPolicySAC(MLPPolicy):
     @property
     def alpha(self):
         # TODO: Formulate entropy term
+        entropy = self.log_alpha.exp()
         return entropy
 
     def get_action(self, obs: np.ndarray, sample=True) -> np.ndarray:
         # TODO: return sample from distribution if sampling
         # if not sampling return the mean of the distribution 
-        return action
+        observations = ptu.from_numpy(obs)
+        action_distribution = self.forward(observations) 
+
+        if sample:
+            action = action_distribution.sample()
+        else:
+            action = action_distribution.sample() # TODO NEED TO FIX
+
+        return ptu.to_numpy(action)
+    
+    def get_log_probs(self, obs: np.ndarray, sample=True) -> np.ndarray:
+        # TODO: return log_probs
+        # if not sampling return the mean of the distribution 
+        observations = ptu.from_numpy(obs)
+        action_distribution = self.forward(observations) 
+
+        if sample:
+            action = action_distribution.sample()
+        else:
+            action = action_distribution.sample() # TODO NEED TO FIX
+
+        log_probs = action_distribution.log_prob(action)
+
+        return ptu.to_numpy(log_probs)
+
 
     # This function defines the forward pass of the network.
     # You can return anything you want, but you should be able to differentiate
@@ -54,10 +79,39 @@ class MLPPolicySAC(MLPPolicy):
         # HINT: 
         # You will need to clip log values
         # You will need SquashedNormal from sac_utils file 
+        batch_mean = self.mean_net(observation)
+        scale_tril = torch.diag(torch.exp(self.logstd))
+        batch_dim = batch_mean.shape[0]
+        batch_scale_tril = scale_tril.repeat(batch_dim, 1)
+
+        action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
+
         return action_distribution
 
     def update(self, obs, critic):
         # TODO Update actor network and entropy regularizer
         # return losses and alpha value
+
+        action = self.get_action(obs) # get action wants numpy 
+        log_probs = self.get_log_probs(obs) # get_log_probs wants numpy
+        log_probs = ptu.from_numpy(log_probs)
+        obs = ptu.from_numpy(obs)
+        q1, q2 = critic(obs, ptu.from_numpy(action)) # The critic wants torch Tensors 
+        q = torch.min(q1, q2)
+        actor_loss = ((self.alpha * log_probs) - q).mean()
+
+        self.optimizer.zero_grad()
+        actor_loss.backward()
+        self.optimizer.step()
+
+        # Dealing with entropy 
+        alpha_loss = -1*(self.log_alpha.exp() * (log_probs + self.target_entropy).detach()).mean()
+        self.log_alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.log_alpha_optimizer.step()
+
+        # Printing alpha
+        alpha = self.log_alpha.exp()
+        print(alpha)
 
         return actor_loss, alpha_loss, self.alpha
