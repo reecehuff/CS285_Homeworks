@@ -5,6 +5,8 @@ from cs285.infrastructure import sac_utils
 from cs285.infrastructure import pytorch_util as ptu
 from torch import nn
 from torch import optim
+import torch.nn.functional as F
+from torch.distributions import Normal
 import itertools
 
 class MLPPolicySAC(MLPPolicy):
@@ -22,6 +24,18 @@ class MLPPolicySAC(MLPPolicy):
                  **kwargs
                  ):
         super(MLPPolicySAC, self).__init__(ac_dim, ob_dim, n_layers, size, discrete, learning_rate, training, **kwargs)
+        # Define MLP for forward pass
+        self.linear1 = nn.Linear(ob_dim, size).to(ptu.device)
+        self.linear2 = nn.Linear(size, size).to(ptu.device)
+
+        self.mean_linear = nn.Linear(size, ac_dim).to(ptu.device)
+        self.log_std_linear = nn.Linear(size, ac_dim).to(ptu.device)
+
+        # Action scaling 
+        self.action_scale = ptu.from_numpy( np.array([((action_range[1] - action_range[0]) / 2.)]) )
+        self.action_bias = ptu.from_numpy( np.array([((action_range[1] + action_range[0]) / 2.)]) ) 
+
+        # This was here before
         self.log_std_bounds = log_std_bounds
         self.action_range = action_range
         self.init_temperature = init_temperature
@@ -45,10 +59,14 @@ class MLPPolicySAC(MLPPolicy):
         observations = ptu.from_numpy(obs)
         action_distribution = self.forward(observations) 
 
-        if sample:
-            action = action_distribution.sample()
-        else:
-            action = action_distribution.sample() # TODO NEED TO FIX
+        # if sample:
+        #     action = action_distribution.sample()
+        # else:
+        #     action = action_distribution.sample() # TODO NEED TO FIX
+
+        x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
+        y_t = torch.tanh(x_t)
+        action = y_t * self.action_scale + self.action_bias
 
         return ptu.to_numpy(action)
     
@@ -58,12 +76,21 @@ class MLPPolicySAC(MLPPolicy):
         observations = ptu.from_numpy(obs)
         action_distribution = self.forward(observations) 
 
-        if sample:
-            action = action_distribution.sample()
-        else:
-            action = action_distribution.sample() # TODO NEED TO FIX
+        # if sample:
+        #     action = action_distribution.sample()
+        # else:
+        #     action = action_distribution.sample() # TODO NEED TO FIX
 
-        log_probs = action_distribution.log_prob(action)
+        # log_probs = action_distribution.log_prob(action)
+
+
+        x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
+        y_t = torch.tanh(x_t)
+        action = y_t * self.action_scale + self.action_bias
+        log_prob = action_distribution.log_prob(x_t)
+        # Enforcing Action Bound
+        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
+        log_probs = log_prob.sum(1, keepdim=True)
 
         return ptu.to_numpy(log_probs)
 
@@ -79,12 +106,24 @@ class MLPPolicySAC(MLPPolicy):
         # HINT: 
         # You will need to clip log values
         # You will need SquashedNormal from sac_utils file 
-        batch_mean = self.mean_net(observation)
-        scale_tril = torch.diag(torch.exp(self.logstd))
-        batch_dim = batch_mean.shape[0]
-        batch_scale_tril = scale_tril.repeat(batch_dim, 1)
+        # batch_mean = self.mean_net(observation)
+        # scale_tril = torch.diag(torch.exp(self.logstd))
+        # batch_dim = batch_mean.shape[0]
+        # batch_scale_tril = scale_tril.repeat(batch_dim, 1)
+        # action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
 
-        action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
+        x = F.relu(self.linear1(observation))
+        x = F.relu(self.linear2(x))
+        mean = self.mean_linear(x)
+        log_std = self.log_std_linear(x)
+        log_std = torch.clamp(log_std, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
+        std = log_std.exp()
+        action_distribution = Normal(mean, std)
+
+        # batch_mean = self.mean_net(observation)
+        # log_std = torch.clamp(self.logstd, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
+        # std = log_std.exp()
+        # action_distribution = Normal(batch_mean, std)
 
         return action_distribution
 
@@ -100,18 +139,20 @@ class MLPPolicySAC(MLPPolicy):
         q = torch.min(q1, q2)
         actor_loss = ((self.alpha * log_probs) - q).mean()
 
+        print(actor_loss)
+
         self.optimizer.zero_grad()
         actor_loss.backward()
         self.optimizer.step()
 
         # Dealing with entropy 
-        alpha_loss = -1*(self.log_alpha.exp() * (log_probs + self.target_entropy).detach()).mean()
+        alpha_loss = -1*(self.log_alpha * (log_probs + self.target_entropy)).mean()
         self.log_alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
         # Printing alpha
-        alpha = self.log_alpha.exp()
-        print(alpha)
+        # alpha = self.log_alpha.exp()
+        # print(alpha)
 
         return actor_loss, alpha_loss, self.alpha

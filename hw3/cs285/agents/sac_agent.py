@@ -12,6 +12,7 @@ from cs285.critics.sac_critic import SACCritic
 import cs285.infrastructure.pytorch_util as ptu
 from cs285.infrastructure import sac_utils
 import torch
+import numpy as np
 
 class SACAgent(BaseAgent):
     def __init__(self, env: gym.Env, agent_params):
@@ -87,17 +88,27 @@ class SACAgent(BaseAgent):
             critic_loss = self.update_critic(ob_no, ac_na, next_ob_no, re_n, terminal_n)
 
         # 2. Softly update the target every critic_target_update_frequency (HINT: look at sac_utils)
+        # print("critic target frequency")
+        # print(self.critic_target_update_frequency)
         if self.training_step % self.critic_target_update_frequency == 0:
+            # print("Updating the target critic")
+            # print(self.training_step)
             sac_utils.soft_update_params(self.critic, self.critic_target, self.critic_tau) 
 
         # 3. Implement following pseudocode:
         # If you need to update actor
         # for agent_params['num_actor_updates_per_agent_update'] steps,
         #     update the actor
+        # print("actor frequency")
+        # print(self.actor_update_frequency)
         if self.training_step % self.actor_update_frequency == 0: 
+            # print("Updating the actor")
+            # print(self.training_step)
             for _ in range(self.agent_params['num_actor_updates_per_agent_update']):
                 actor_loss, alpha_loss, alpha = self.actor.update(ob_no,self.critic)
                 self.critic
+        else:
+            actor_loss, alpha_loss, alpha = np.NaN, np.NaN, self.actor.init_temperature
 
         # 4. gather losses for logging
         loss = OrderedDict()
