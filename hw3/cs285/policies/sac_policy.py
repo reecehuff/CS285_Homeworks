@@ -50,7 +50,7 @@ class MLPPolicySAC(MLPPolicy):
     @property
     def alpha(self):
         # TODO: Formulate entropy term
-        entropy = self.log_alpha.exp()
+        entropy = torch.exp(self.log_alpha)
         return entropy
 
     def get_action(self, obs: np.ndarray, sample=True) -> np.ndarray:
@@ -59,14 +59,23 @@ class MLPPolicySAC(MLPPolicy):
         observations = ptu.from_numpy(obs)
         action_distribution = self.forward(observations) 
 
-        # if sample:
-        #     action = action_distribution.sample()
-        # else:
-        #     action = action_distribution.sample() # TODO NEED TO FIX
+        if sample:
+            action = action_distribution.rsample()
+        else:
+            action = action_distribution.mean # TODO NEED TO FIX
 
-        x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
-        y_t = torch.tanh(x_t)
-        action = y_t * self.action_scale + self.action_bias
+        if action.shape == torch.Size([action.shape[0]]):
+            action = action.unsqueeze(0)
+        else:
+            pass 
+
+        action = torch.clamp(action, min=self.action_range[0], max=self.action_range[1])
+
+
+
+        # x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
+        # y_t = torch.tanh(x_t)
+        # action = y_t * self.action_scale + self.action_bias
 
         return ptu.to_numpy(action)
     
@@ -112,13 +121,32 @@ class MLPPolicySAC(MLPPolicy):
         # batch_scale_tril = scale_tril.repeat(batch_dim, 1)
         # action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
 
-        x = F.relu(self.linear1(observation))
-        x = F.relu(self.linear2(x))
-        mean = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
-        log_std = torch.clamp(log_std, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
+        if observation.shape == torch.Size([observation.shape[0]]):
+            observation = observation.unsqueeze(0)
+        else:
+            pass 
+
+        batch_mean = self.mean_net(observation)
+        log_std = torch.clamp(self.logstd, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
         std = log_std.exp()
-        action_distribution = Normal(mean, std)
+        action_distribution = sac_utils.SquashedNormal( batch_mean, std )
+
+
+
+
+        # scale_tril = torch.diag(torch.exp(self.logstd))
+        # batch_dim = batch_mean.shape[0]
+        # batch_scale_tril = scale_tril.repeat(batch_dim, 1)
+        # action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
+
+
+        # x = F.relu(self.linear1(observation))
+        # x = F.relu(self.linear2(x))
+        # mean = self.mean_linear(x)
+        # log_std = self.log_std_linear(x)
+        # log_std = torch.clamp(log_std, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
+        # std = log_std.exp()
+        # action_distribution = Normal(mean, std)
 
         # batch_mean = self.mean_net(observation)
         # log_std = torch.clamp(self.logstd, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
@@ -131,22 +159,38 @@ class MLPPolicySAC(MLPPolicy):
         # TODO Update actor network and entropy regularizer
         # return losses and alpha value
 
-        action = self.get_action(obs) # get action wants numpy 
-        log_probs = self.get_log_probs(obs) # get_log_probs wants numpy
-        log_probs = ptu.from_numpy(log_probs)
         obs = ptu.from_numpy(obs)
-        q1, q2 = critic(obs, ptu.from_numpy(action)) # The critic wants torch Tensors 
-        q = torch.min(q1, q2)
-        actor_loss = ((self.alpha * log_probs) - q).mean()
+        action_distribution = self.forward(obs) # get action wants numpy 
+        action = action_distribution.rsample()
+        action = torch.clamp(action, min=self.action_range[0], max=self.action_range[1])
 
-        print(actor_loss)
+        log_probs = action_distribution.log_prob(action).sum(-1, keepdim=True)
+
+        q1_target, q2_target = critic.forward(obs,action) # Critic network wants PyTorch
+        target_q = torch.minimum(q1_target, q2_target) # - self.actor.alpha.detach() * next_log_probs
+        actor_loss = ((self.alpha.detach() * log_probs) - target_q).mean()
+
+        # target_q = re_n + self.gamma * target_q * (1-terminal_n)
+        # target_q = torch.unsqueeze(target_q, dim=1).detach()
+
+
+
+        # log_probs = self.get_log_probs(obs) # get_log_probs wants numpy
+        # log_probs = ptu.from_numpy(log_probs)
+        # obs = ptu.from_numpy(obs)
+        # q1, q2 = critic(obs, ptu.from_numpy(action)) # The critic wants torch Tensors 
+        # q = torch.min(q1, q2)
+        # actor_loss = ((self.alpha * log_probs) - q).mean()
+
+        # print(actor_loss)
 
         self.optimizer.zero_grad()
         actor_loss.backward()
         self.optimizer.step()
 
         # Dealing with entropy 
-        alpha_loss = -1*(self.log_alpha * (log_probs + self.target_entropy)).mean()
+        alpha_loss = -1*(self.alpha * (log_probs + self.target_entropy).detach() ).mean()
+
         self.log_alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
