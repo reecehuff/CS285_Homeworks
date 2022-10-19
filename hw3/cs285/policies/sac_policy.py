@@ -5,8 +5,6 @@ from cs285.infrastructure import sac_utils
 from cs285.infrastructure import pytorch_util as ptu
 from torch import nn
 from torch import optim
-import torch.nn.functional as F
-from torch.distributions import Normal
 import itertools
 
 class MLPPolicySAC(MLPPolicy):
@@ -24,18 +22,6 @@ class MLPPolicySAC(MLPPolicy):
                  **kwargs
                  ):
         super(MLPPolicySAC, self).__init__(ac_dim, ob_dim, n_layers, size, discrete, learning_rate, training, **kwargs)
-        # Define MLP for forward pass
-        self.linear1 = nn.Linear(ob_dim, size).to(ptu.device)
-        self.linear2 = nn.Linear(size, size).to(ptu.device)
-
-        self.mean_linear = nn.Linear(size, ac_dim).to(ptu.device)
-        self.log_std_linear = nn.Linear(size, ac_dim).to(ptu.device)
-
-        # Action scaling 
-        self.action_scale = ptu.from_numpy( np.array([((action_range[1] - action_range[0]) / 2.)]) )
-        self.action_bias = ptu.from_numpy( np.array([((action_range[1] + action_range[0]) / 2.)]) ) 
-
-        # This was here before
         self.log_std_bounds = log_std_bounds
         self.action_range = action_range
         self.init_temperature = init_temperature
@@ -46,63 +32,50 @@ class MLPPolicySAC(MLPPolicy):
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.learning_rate)
 
         self.target_entropy = -ac_dim
+        self.mean_net = ptu.build_mlp(input_size=self.ob_dim,
+                                  output_size=self.ac_dim,
+                                  n_layers=self.n_layers, size=self.size)
+        self.logstd = nn.Parameter(
+            torch.zeros(self.ac_dim, dtype=torch.float32, device=ptu.device)
+        )
+        self.mean_net.to(ptu.device)
+        self.logstd.to(ptu.device)
+        self.actor_optimizer = optim.Adam(
+            itertools.chain([self.logstd], self.mean_net.parameters()), lr= 1e-4)
 
     @property
     def alpha(self):
         # TODO: Formulate entropy term
-        entropy = torch.exp(self.log_alpha)
-        return entropy
+        
+        #pass
+        #return entropy
+        return torch.exp(self.log_alpha) 
 
     def get_action(self, obs: np.ndarray, sample=True) -> np.ndarray:
         # TODO: return sample from distribution if sampling
-        # if not sampling return the mean of the distribution 
-        observations = ptu.from_numpy(obs)
-        action_distribution = self.forward(observations) 
+        # if not sampling return the mean of the distribution
+        """
+        if len(obs.shape) > 1:
+          observation = obs
+        else:
+          observation = obs[None]
+        """
 
+        observation = ptu.from_numpy(obs)
+        action_distribution = self.forward(observation)
         if sample:
-            action = action_distribution.rsample()
+          action = action_distribution.rsample()  # don't bother with rsample
         else:
-            action = action_distribution.mean # TODO NEED TO FIX
-
-        if action.shape == torch.Size([action.shape[0]]):
-            action = action.unsqueeze(0)
+          action=action_distribution.mean
+        if action.shape==torch.Size([action.shape[0]]):
+          action=action.unsqueeze(0)
         else:
-            pass 
-
-        action = torch.clamp(action, min=self.action_range[0], max=self.action_range[1])
-
-
-
-        # x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
-        # y_t = torch.tanh(x_t)
-        # action = y_t * self.action_scale + self.action_bias
+          pass
+        action=torch.clamp(action, self.action_range[0],self.action_range[1])
 
         return ptu.to_numpy(action)
-    
-    def get_log_probs(self, obs: np.ndarray, sample=True) -> np.ndarray:
-        # TODO: return log_probs
-        # if not sampling return the mean of the distribution 
-        observations = ptu.from_numpy(obs)
-        action_distribution = self.forward(observations) 
-
-        # if sample:
-        #     action = action_distribution.sample()
-        # else:
-        #     action = action_distribution.sample() # TODO NEED TO FIX
-
-        # log_probs = action_distribution.log_prob(action)
-
-
-        x_t = action_distribution.rsample()  # for reparameterization trick (mean + std * N(0,1))
-        y_t = torch.tanh(x_t)
-        action = y_t * self.action_scale + self.action_bias
-        log_prob = action_distribution.log_prob(x_t)
-        # Enforcing Action Bound
-        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
-        log_probs = log_prob.sum(1, keepdim=True)
-
-        return ptu.to_numpy(log_probs)
-
+        #pass 
+        #return action
 
     # This function defines the forward pass of the network.
     # You can return anything you want, but you should be able to differentiate
@@ -114,89 +87,68 @@ class MLPPolicySAC(MLPPolicy):
 
         # HINT: 
         # You will need to clip log values
-        # You will need SquashedNormal from sac_utils file 
-        # batch_mean = self.mean_net(observation)
-        # scale_tril = torch.diag(torch.exp(self.logstd))
-        # batch_dim = batch_mean.shape[0]
-        # batch_scale_tril = scale_tril.repeat(batch_dim, 1)
-        # action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
-
-        if observation.shape == torch.Size([observation.shape[0]]):
-            observation = observation.unsqueeze(0)
+        # You will need SquashedNormal from sac_utils file
+        #class SquashedNormal(dist.transformed_distribution.TransformedDistribution):
+        #mu, log_std = self.trunk(observation).chunk(2, dim=-1)
+        if observation.shape==torch.Size([observation.shape[0]]):
+          observation=observation.unsqueeze(0)
         else:
-            pass 
+          pass
 
-        batch_mean = self.mean_net(observation)
-        log_std = torch.clamp(self.logstd, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
-        std = log_std.exp()
-        action_distribution = sac_utils.SquashedNormal( batch_mean, std )
+        mu = self.mean_net(observation)
+        #log_std=self.logstd
+        #log_std = torch.clamp(log_std,self.log_std_bounds[0],self.log_std_bounds[1])
+        #log_std_min, log_std_max = self.log_std_bounds
+        #log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
+        #
+        log_std = torch.exp(torch.clamp(self.logstd, self.log_std_bounds[0], self.log_std_bounds[1]))                                                          
+        #std = log_std.exp()
 
+        #self.outputs['mu'] = mu
+        #self.outputs['std'] = std
 
+        action_distribution = sac_utils.SquashedNormal(mu, log_std)#.rsample()
 
-
-        # scale_tril = torch.diag(torch.exp(self.logstd))
-        # batch_dim = batch_mean.shape[0]
-        # batch_scale_tril = scale_tril.repeat(batch_dim, 1)
-        # action_distribution = sac_utils.SquashedNormal( batch_mean, batch_scale_tril )
-
-
-        # x = F.relu(self.linear1(observation))
-        # x = F.relu(self.linear2(x))
-        # mean = self.mean_linear(x)
-        # log_std = self.log_std_linear(x)
-        # log_std = torch.clamp(log_std, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
-        # std = log_std.exp()
-        # action_distribution = Normal(mean, std)
-
-        # batch_mean = self.mean_net(observation)
-        # log_std = torch.clamp(self.logstd, min=self.log_std_bounds[0], max=self.log_std_bounds[1])
-        # std = log_std.exp()
-        # action_distribution = Normal(batch_mean, std)
-
+        #pass 
         return action_distribution
 
     def update(self, obs, critic):
         # TODO Update actor network and entropy regularizer
         # return losses and alpha value
+        #pass
 
-        obs = ptu.from_numpy(obs)
-        action_distribution = self.forward(obs) # get action wants numpy 
-        action = action_distribution.rsample()
-        action = torch.clamp(action, min=self.action_range[0], max=self.action_range[1])
+        #detach alpha and target entropy
+        obs=ptu.from_numpy(obs)
 
-        log_probs = action_distribution.log_prob(action).sum(-1, keepdim=True)
+        dist = self.forward(obs)
+        action = dist.rsample()
 
-        q1_target, q2_target = critic.forward(obs,action) # Critic network wants PyTorch
-        target_q = torch.minimum(q1_target, q2_target) # - self.actor.alpha.detach() * next_log_probs
-        actor_loss = ((self.alpha.detach() * log_probs) - target_q).mean()
+        action=torch.clamp(action,self.action_range[0],self.action_range[1])
 
-        # target_q = re_n + self.gamma * target_q * (1-terminal_n)
-        # target_q = torch.unsqueeze(target_q, dim=1).detach()
+        log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+        actor_Q1, actor_Q2 = critic.forward(obs, action)
+
+        actor_Q = torch.minimum(actor_Q1, actor_Q2)
+        actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
 
-
-        # log_probs = self.get_log_probs(obs) # get_log_probs wants numpy
-        # log_probs = ptu.from_numpy(log_probs)
-        # obs = ptu.from_numpy(obs)
-        # q1, q2 = critic(obs, ptu.from_numpy(action)) # The critic wants torch Tensors 
-        # q = torch.min(q1, q2)
-        # actor_loss = ((self.alpha * log_probs) - q).mean()
-
-        # print(actor_loss)
-
-        self.optimizer.zero_grad()
+        # optimize the actor
+        """
+        self.actor_optimizer.zero_grad()
         actor_loss.backward()
-        self.optimizer.step()
+        self.actor_optimizer.step()
+        """
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
 
-        # Dealing with entropy 
-        alpha_loss = -1*(self.alpha * (log_probs + self.target_entropy).detach() ).mean()
 
+        
+        alpha_loss = (self.alpha *
+                      (-log_prob - self.target_entropy).detach()).mean()
         self.log_alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-        # Printing alpha
-        # alpha = self.log_alpha.exp()
-        # print(alpha)
 
         return actor_loss, alpha_loss, self.alpha
