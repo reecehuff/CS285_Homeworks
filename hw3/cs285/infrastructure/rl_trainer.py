@@ -254,7 +254,7 @@ class RL_Trainer(object):
                     episode_step = 0
                     episode_return = 0
 
-                action = self.agent.actor.get_action(obs) # [0] # NEED TO FIX
+                action = self.agent.actor.get_action(obs)[0] # NEED TO FIX
                 next_obs, rew, done, _ = self.env.step(action)
 
                 episode_return += rew
