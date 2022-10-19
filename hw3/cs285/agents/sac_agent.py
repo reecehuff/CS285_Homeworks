@@ -10,9 +10,9 @@ import gym
 from cs285.policies.sac_policy import MLPPolicySAC
 from cs285.critics.sac_critic import SACCritic
 import cs285.infrastructure.pytorch_util as ptu
-from cs285.infrastructure import sac_utils
-import torch
-import numpy as np
+
+import torch 
+import cs285.infrastructure.sac_utils as sac_utils
 
 class SACAgent(BaseAgent):
     def __init__(self, env: gym.Env, agent_params):
@@ -53,26 +53,27 @@ class SACAgent(BaseAgent):
         ob_no = ptu.from_numpy(ob_no)
         ac_na = ptu.from_numpy(ac_na)
         next_ob_no = ptu.from_numpy(next_ob_no)
-        re_n = ptu.from_numpy(re_n).unsqueeze(1)
-        terminal_n = ptu.from_numpy(terminal_n).unsqueeze(1)
+        re_n = ptu.from_numpy(re_n)
+        terminal_n = ptu.from_numpy(terminal_n)
 
         # 1. Compute the target Q value. 
         # HINT: You need to use the entropy term (alpha)
-        next_action = self.actor.get_action(ptu.to_numpy(ob_no)) # Actor's get_action wants numpy 
-        next_log_probs = self.actor.get_log_probs(ptu.to_numpy(ob_no)) # Actor's get_action wants numpy 
-        next_log_probs = ptu.from_numpy(next_log_probs)
+        action_distribution = self.actor.forward(next_ob_no)
+        next_action         = action_distribution.rsample()
+        next_action         = torch.clamp(next_action,self.actor.action_range[0], self.actor.action_range[1])
 
-        q1_target, q2_target = self.critic_target(next_ob_no,ptu.from_numpy(next_action)) # Critic network wants PyTorch
-        target_q = torch.min(q1_target, q2_target) - self.actor.alpha * next_log_probs
-        target_q = re_n + self.gamma * target_q * (1-terminal_n)
+        log_probs = action_distribution.log_prob(next_action).sum(-1, keepdim=True)
+        target_q1, target_q2 = self.critic_target.forward(next_ob_no, next_action)
+        target_q = torch.minimum(target_q1, target_q2) - self.actor.alpha.detach() * log_probs
+        target_q = torch.squeeze(target_q, dim=1)
+        target_q = re_n + ((1-terminal_n) * self.gamma * target_q)
+        target_q = torch.unsqueeze(target_q, dim=1).detach()
         
         # 2. Get current Q estimates and calculate critic loss
-        q1, q2 = self.critic(ob_no,ac_na)
-        q = torch.min(q1, q2)
+        q1, q2 = self.critic.forward(ob_no, ac_na)
+        critic_loss = self.critic.loss(q1, target_q) + self.critic.loss(q2, target_q)
 
         # 3. Optimize the critic  
-        assert q.shape == target_q.shape
-        critic_loss = self.critic.loss(q, target_q)
         self.critic.optimizer.zero_grad()
         critic_loss.backward()
         self.critic.optimizer.step()
@@ -84,31 +85,21 @@ class SACAgent(BaseAgent):
         # 1. Implement the following pseudocode:
         # for agent_params['num_critic_updates_per_agent_update'] steps,
         #     update the critic
-        for _ in range(self.agent_params['num_critic_updates_per_agent_update']):
+        for i in range(self.agent_params['num_critic_updates_per_agent_update']):
             critic_loss = self.update_critic(ob_no, ac_na, next_ob_no, re_n, terminal_n)
 
         # 2. Softly update the target every critic_target_update_frequency (HINT: look at sac_utils)
-        # print("critic target frequency")
-        # print(self.critic_target_update_frequency)
-        if self.training_step % self.critic_target_update_frequency == 0:
-            # print("Updating the target critic")
-            # print(self.training_step)
-            sac_utils.soft_update_params(self.critic, self.critic_target, self.critic_tau) 
+            if i % self.critic_target_update_frequency==0:
+                sac_utils.soft_update_params(self.critic, self.critic_target, self.critic_tau)
 
         # 3. Implement following pseudocode:
         # If you need to update actor
         # for agent_params['num_actor_updates_per_agent_update'] steps,
         #     update the actor
-        # print("actor frequency")
-        # print(self.actor_update_frequency)
-        if self.training_step % self.actor_update_frequency == 0: 
-            # print("Updating the actor")
-            # print(self.training_step)
-            for _ in range(self.agent_params['num_actor_updates_per_agent_update']):
+        for j in range(self.agent_params['num_actor_updates_per_agent_update']):
+            if j % self.actor_update_frequency==0:
                 actor_loss, alpha_loss, alpha = self.actor.update(ob_no,self.critic)
-                self.critic
-        else:
-            actor_loss, alpha_loss, alpha = np.NaN, np.NaN, self.actor.init_temperature
+
 
         # 4. gather losses for logging
         loss = OrderedDict()
@@ -116,9 +107,6 @@ class SACAgent(BaseAgent):
         loss['Actor_Loss'] = actor_loss     # TODO
         loss['Alpha_Loss'] = alpha_loss     # TODO
         loss['Temperature'] = alpha         # TODO
-
-        # Update the number of training steps
-        self.training_step += 1
 
         return loss
 

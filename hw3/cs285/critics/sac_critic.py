@@ -9,14 +9,12 @@ import torch
 class SACCritic(nn.Module, BaseCritic):
     """
         Notes on notation:
-
         Prefixes and suffixes:
         ob - observation
         ac - action
         _no - this tensor should have shape (batch self.size /n/, observation dim)
         _na - this tensor should have shape (batch self.size /n/, action dim)
         _n  - this tensor should have shape (batch self.size /n/)
-
         Note: batch self.size /n/ is defined at runtime.
         is None
     """
@@ -56,12 +54,10 @@ class SACCritic(nn.Module, BaseCritic):
 
     def forward(self, obs: torch.Tensor, action: torch.Tensor):
         # TODO: return the two q values
-        obs_and_action = torch.cat([obs, action], dim=1)
-        q1 = self.Q1(obs_and_action)
-        q2 = self.Q2(obs_and_action)
 
-        return q1, q2
+        obs_action = torch.cat([obs, action], dim=-1)
+        q1 = self.Q1(obs_action)
+        q2 = self.Q2(obs_action)
+        values = tuple((q1,q2))
 
-
-
-        
+        return values
