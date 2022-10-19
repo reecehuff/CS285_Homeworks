@@ -67,7 +67,7 @@ y_bayes_font_size = 24
 legend_bayes_font_size = 20
 
 # Base dir (where all of the folders that contain the event files are)
-base_dir = '/home/rdhuff/Desktop/submit/data/'
+base_dir = '/home/rdhuff/Desktop/CS285_Homeworks/hw3/submit/data/'
 # base_dir = '/home/rdhuff/Desktop/CS285/hw2/run_logs4play/'
 
 #%% Question 1 
