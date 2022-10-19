@@ -24,7 +24,7 @@ def get_section_results(file):
     """
     X = []
     Y = []
-    for e in tf.train.summary_iterator(file):
+    for e in tf.compat.v1.train.summary_iterator(file):
         for v in e.summary.value:
             if v.tag == 'Train_EnvstepsSoFar':
                 X.append(v.simple_value)
@@ -72,14 +72,31 @@ base_dir = '/home/rdhuff/Desktop/submit/data/'
 
 #%% Question 1 
 
+def get_section_results_Q1(file):
+    """
+        requires tensorflow==1.12.0
+    """
+    X = []
+    Y = []
+    Y2= []
+    for e in tf.compat.v1.train.summary_iterator(file):
+        for v in e.summary.value:
+            if v.tag == 'Train_EnvstepsSoFar':
+                X.append(v.simple_value)
+            elif v.tag == 'Train_AverageReturn':
+                Y.append(v.simple_value)
+            elif v.tag == 'Train_BestReturn':
+                Y2.append(v.simple_value)
+    return np.array(X), np.array(Y), np.array(Y2)
+
 # Read in the data
 logdir = base_dir + 'q1_*/events*'
 eventfile = glob.glob(logdir)[0]
 print(eventfile)
-X, Y = get_section_results(eventfile)
+X, Y, Y2 = get_section_results_Q1(eventfile)
 
 # Input label 
-input_label = r"Ms. Pacman"
+input_label = r"Average Return"
 
 # Plot the results 
 plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
@@ -88,6 +105,9 @@ plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
 X = X[:-1]
 X = X / 1000000 # Convert to millions
 AddLinePlot(X,Y,input_label,color1)
+X = X[:-1]
+AddLinePlot(X,Y2,"Best Return So Far",color2)
+
 
 # Add a danky legend
 leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
@@ -279,21 +299,25 @@ for i, file in enumerate(eventfiles):
     print(i)
     print(file)
     X, Y = get_section_results(file)
-    if i == 0:
-        Y_s = Y;
-    else:
-        Y_s = np.vstack((Y_s,Y))
+    
+    if i == 0: 
+        X_1 = X;
+        Y_1 = Y;
+    if i == 1:
+        X_2 = X;
+        Y_2 = Y;
+        
 
 # Input label 
-input_labels = [r"-ntu 1 -ngsptu 100", r"-ntu 10 -ngsptu 10", r"-ntu 100 -ngsptu 1"]
+input_labels = [r"-ntu 10 -ngsptu 10", r"-ntu 10 -ngsptu 10"]
 
+#-------------------------INVERTED PENDULUM-----------------------------#
 # Plot the results 
 plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
 
 # Add line plot
-X = X / 1000 # Convert to thousands
-for i in range(Y_s.shape[0]):
-    AddLinePlot(X,Y_s[i],input_labels[i],colors[i])
+X_1 = X_1 / 5000 # Convert to thousands
+AddLinePlot(X_1,Y_1,input_labels[0],colors[0])
 
 # Add a danky legend
 leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
@@ -304,7 +328,7 @@ frame.set_edgecolor('black')
 # xlabel, ylabel, and title 
 plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
 plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
-plt.title(r"Returns in \textbf{CartPole} Environment",
+plt.title(r"Returns in \textbf{InvertedPendulum} Environment",
           fontsize=24)
 
 # Increase tick font size
@@ -312,6 +336,114 @@ plt.xticks(fontsize=x_bayes_font_size)
 plt.yticks(fontsize=y_bayes_font_size)
 
 # Save the figure
-plt.savefig("figures/question4.png", dpi=600)
+plt.savefig("figures/question5_Pendulum.png", dpi=600)
 plt.show()
 
+
+#-------------------------HALF CHEETAH-----------------------------#
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Add line plot
+X_2 = X_2 / 30000 # Convert to thousands
+AddLinePlot(X_2,Y_2,input_labels[1],colors[1])
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
+plt.title(r"Returns in \textbf{HalfCheetah} Environment",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/question5_Cheetah.png", dpi=600)
+plt.show()
+
+
+#%% Question 6
+
+# Read in the data
+#-----------Across the variation of learning rate
+logdir = base_dir + 'q6*/events*'
+eventfiles = sorted(glob.glob(logdir))
+for i, file in enumerate(eventfiles):
+    print(i)
+    print(file)
+    X, Y = get_section_results(file)
+    
+    if i == 0: 
+        X_1 = X;
+        Y_1 = Y;
+    if i == 1:
+        X_2 = X;
+        Y_2 = Y;
+        
+
+# Input label 
+input_labels = [r"SAC", r"SAC"]
+
+#-------------------------INVERTED PENDULUM-----------------------------#
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Add line plot
+X_1 = X_1 / 1000 # Convert to thousands
+AddLinePlot(X_1,Y_1,input_labels[0],colors[0])
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
+plt.title(r"Returns in \textbf{InvertedPendulum} Environment",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/question6_Pendulum.png", dpi=600)
+plt.show()
+
+
+#-------------------------HALF CHEETAH-----------------------------#
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Add line plot
+X_2 = X_2 / 1500 # Convert to thousands
+AddLinePlot(X_2,Y_2,input_labels[1],colors[1])
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
+plt.title(r"Returns in \textbf{HalfCheetah} Environment",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/question6_Cheetah.png", dpi=600)
+plt.show()
