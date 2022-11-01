@@ -203,10 +203,10 @@ class RL_Trainer(object):
                 return paths, 0, None
             if save_expert_data_to_disk:
                 num_transitions_to_sample = self.params['batch_size_initial']
-            if isinstance(self.agent, SACAgent):
-                print("\nSampling seed steps for training...")
-                paths, envsteps_this_batch = utils.sample_random_trajectories(self.env, num_transitions_to_sample, self.params['ep_len'])
-                return paths, envsteps_this_batch, None
+            # if isinstance(self.agent, SACAgent):
+            #     print("\nSampling seed steps for training...")
+            #     paths, envsteps_this_batch = utils.sample_random_trajectories(self.env, num_transitions_to_sample, self.params['ep_len'])
+            #     return paths, envsteps_this_batch, None
 
         # collect data to be used for training
         print("\nCollecting data to be used for training...")
@@ -214,9 +214,9 @@ class RL_Trainer(object):
 
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         train_video_paths = None
-        if self.logvideo:
-            print('\nCollecting train rollouts to be used for saving videos...')
-            train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
+        # if self.logvideo:
+        #     print('\nCollecting train rollouts to be used for saving videos...')
+        #     train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
 
         if save_expert_data_to_disk and itr == 0:
             with open('expert_data_{}.pkl'.format(self.params['env_name']), 'wb') as file:
