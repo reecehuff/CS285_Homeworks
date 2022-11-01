@@ -36,11 +36,20 @@ class MLPPolicySAC(MLPPolicy):
     @property
     def alpha(self):
         # TODO: get this from previous HW
-        return entropy
+        return self.log_alpha.exp()
 
     def get_action(self, obs: np.ndarray, sample=True) -> np.ndarray:
         # TODO: get this from previous HW
-        return action
+        if len(obs.shape) > 1:
+            observation = obs
+        else:
+            observation = obs[None]
+
+        observation = ptu.from_numpy(observation)
+        dist = self(observation)
+        action = dist.sample() if sample else dist.mean
+        action = action.clamp(*self.action_range)
+        return ptu.to_numpy(action)
 
     # This function defines the forward pass of the network.
     # You can return anything you want, but you should be able to differentiate
@@ -49,8 +58,33 @@ class MLPPolicySAC(MLPPolicy):
     # `torch.distributions.Distribution` object. It's up to you!
     def forward(self, observation: torch.FloatTensor):
         # TODO: get this from previous HW
-        return action_distribution
+        mean = self.mean_net(observation)
+        log_std = torch.tanh(self.logstd)
+        log_std_min, log_std_max = self.log_std_bounds
+        log_std = torch.clip(log_std, log_std_min, log_std_max)
+        std = log_std.exp()
+        dist = sac_utils.SquashedNormal(mean, std)
+        return dist
 
     def update(self, obs, critic):
         # TODO: get this from previous HW
-        return actor_loss, alpha_loss, self.alpha
+        obs = ptu.from_numpy(obs)
+
+        dist = self(obs)
+        action = dist.rsample()
+        log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+        actor_Qs = critic(obs, action)
+        actor_Q = torch.min(*actor_Qs)
+        actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+
+        self.optimizer.zero_grad()
+        actor_loss.backward()
+        self.optimizer.step()
+
+        self.log_alpha_optimizer.zero_grad()
+        alpha_loss = (self.alpha *
+                      (-log_prob - self.target_entropy).detach()).mean()
+        alpha_loss.backward()
+        self.log_alpha_optimizer.step()
+
+        return actor_loss.item(), alpha_loss.item(), self.alpha.item()
