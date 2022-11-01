@@ -4,3 +4,4 @@ hw3/*/*/__pycache__/*
 hw3/data/
 hw2/submit/
 hw3/cs285/envs/box2d/__pycache__/
+hw4/cs285.egg-info/*
