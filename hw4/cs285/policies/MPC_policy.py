@@ -62,8 +62,9 @@ class MPCPolicy(BasePolicy):
             # Begin with randomly selected actions, then refine the sampling distribution
             # iteratively as described in Section 3.3, "Iterative Random-Shooting with Refinement" of
             # https://arxiv.org/pdf/1909.11652.pdf 
-            random_action_sequences = np.random.uniform(self.low, self.high, size=(num_sequences, horizon, self.ac_dim))
-
+            candidate_action_sequences = np.random.uniform(self.low, self.high, size=(num_sequences, horizon, self.ac_dim))
+            means = np.zeros((self.ac_dim))
+            stds  = np.zeros((self.ac_dim))
             for i in range(self.cem_iterations):
                 # - Sample candidate sequences from a Gaussian with the current 
                 #   elite mean and variance
@@ -73,10 +74,22 @@ class MPCPolicy(BasePolicy):
                 #     (Hint: what existing function can we use to compute rewards for
                 #      our candidate sequences in order to rank them?)
                 # - Update the elite mean and variance
-                pass
+                predicted_rewards = self.evaluate_candidate_sequences(candidate_action_sequences, obs)
+                elite_sequences = candidate_action_sequences[np.argsort(predicted_rewards)[-self.cem_num_elites:]]
+
+                # Calculate mean and std of the elite sequences
+                means = self.cem_alpha * np.mean(elite_sequences, axis=(0,1)) + (1-self.cem_alpha) * means
+                stds  = np.std(elite_sequences, axis=(0,1)) + (1-self.cem_alpha) * stds
+
+                # Sample from Gaussian distribtuions and clip the sequences
+                sampled_sequences = np.random.multivariate_normal(means, np.diag(stds), size=(num_sequences,horizon))
+                clipped_sampled_sequences = np.clip(sampled_sequences, self.low, self.high)
+
+                # Set those as the new candidate sequences
+                candidate_action_sequences = clipped_sampled_sequences
 
             # TODO(Q5): Set `cem_action` to the appropriate action chosen by CEM
-            cem_action = None
+            cem_action = candidate_action_sequences[0]
 
             return cem_action[None]
         else:

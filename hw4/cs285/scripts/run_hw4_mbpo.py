@@ -9,8 +9,6 @@ class MBPO_Trainer(object):
 
     def __init__(self, params):
 
-        
-
         #####################
         ## SET AGENT PARAMS
         #####################
