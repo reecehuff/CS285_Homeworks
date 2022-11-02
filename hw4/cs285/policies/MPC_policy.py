@@ -106,8 +106,7 @@ class MPCPolicy(BasePolicy):
         # Hint: the return value should be an array of shape (N,)
         predicted_sum_of_rewards_per_model = []
         for model in self.dyn_models: 
-            sum_of_rewards = self.calculate_sum_of_rewards(
-                obs, candidate_action_sequences, model)
+            sum_of_rewards = self.calculate_sum_of_rewards(obs, candidate_action_sequences, model)
             predicted_sum_of_rewards_per_model.append(sum_of_rewards)
 
         predicted_rewards = np.mean(predicted_sum_of_rewards_per_model, axis=0)
@@ -119,8 +118,7 @@ class MPCPolicy(BasePolicy):
             return self.sample_action_sequences(num_sequences=1, horizon=1)[0]
 
         # sample random actions (N x horizon x action_dim)
-        candidate_action_sequences = self.sample_action_sequences(
-            num_sequences=self.N, horizon=self.horizon, obs=obs)
+        candidate_action_sequences = self.sample_action_sequences(num_sequences=self.N, horizon=self.horizon, obs=obs)
 
         if candidate_action_sequences.shape[0] == 1:
             # CEM: only a single action sequence to consider; return the first action
@@ -135,7 +133,6 @@ class MPCPolicy(BasePolicy):
 
     def calculate_sum_of_rewards(self, obs, candidate_action_sequences, model):
         """
-
         :param obs: numpy array with the current observation. Shape [D_obs]
         :param candidate_action_sequences: numpy array with the candidate action
         sequences. Shape [N, H, D_action] where
@@ -163,17 +160,17 @@ class MPCPolicy(BasePolicy):
         pred_obs = np.zeros((N, H, self.ob_dim))
         pred_obs[:, 0] = np.tile(obs[None, :], (N, 1))
         rewards = np.zeros((N, H))
-        for t in range(H):
-            rewards[:, t], _ = self.env.get_reward(
-                pred_obs[:, t], candidate_action_sequences[:, t])
-            if t < H - 1:
-                pred_obs[:, t + 1] = model.get_prediction(
-                    pred_obs[:, t],
-                    candidate_action_sequences[:, t],
-                    self.data_statistics,
-                )
 
-        sum_of_rewards = rewards.sum(axis=1)
-        assert sum_of_rewards.shape == (N,)
+        for s in range(H):
+            ob = pred_obs[:, s]
+            ac = candidate_action_sequences[:, s]
+            rewards[:, s], _ = self.env.get_reward(ob, ac)
+
+            if s < H - 1:
+                ob = pred_obs[:, s]
+                ac = candidate_action_sequences[:, s]
+                pred_obs[:, s + 1] = model.get_prediction(ob, ac, self.data_statistics)
+
+        sum_of_rewards = np.sum(rewards,axis=1)
         
         return sum_of_rewards

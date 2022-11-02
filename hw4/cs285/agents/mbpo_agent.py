@@ -35,9 +35,7 @@ class MBPOAgent(BaseAgent):
             # dynamics models in the ensemble
             next_ob = 0
             for model in self.mb_agent.dyn_models:
-                next_ob_pred = model.get_prediction(
-                                                    ob, ac, self.mb_agent.actor.data_statistics
-                                                    )
+                next_ob_pred = model.get_prediction(ob, ac, self.mb_agent.actor.data_statistics)
                 next_ob = next_ob + next_ob_pred
             next_ob = next_ob / self.mb_agent.ensemble_size # TODO
 
