@@ -59,7 +59,8 @@ def AddBayesPlot(xaxis,mean,std,input_label,color1):
     lower = mean - std
     upper = mean + std
     # Accuracy plots
-    plt.plot(xaxis, mean, color=color1,label=input_label)
+    plt.plot(xaxis, mean, color=color1,label=input_label, marker='.', markersize=10)
+    plt.plot()
     plt.fill_between(xaxis, lower, upper, alpha=0.2, color=color1)
     # plt.errorbar(xaxis, line,  upper - line, color=color1)
     # plt.plot(xaxis, upper,'--', color=color1)
@@ -119,8 +120,8 @@ plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
 
 # Add line plot
 X = np.arange(len(train_Y)) + 1
-AddBayesPlotWithScatter(X, train_Y, train_std, r"Train Avg Return", color1)
-AddBayesPlotWithScatter(X, eval_Y, eval_std, r"Eval Avg Return", color2)
+AddBayesPlot(X, train_Y, train_std, r"Train Avg Return", color1)
+AddBayesPlot(X, eval_Y, eval_std, r"Eval Avg Return", color2)
 
 
 # Add a danky legend
@@ -132,7 +133,7 @@ frame.set_edgecolor('black')
 # xlabel, ylabel, and title 
 plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
 plt.ylabel(r"\textbf{Average Return}",fontsize=y_bayes_font_size)
-plt.title(r"Returns in \textbf{Obstacles} Environment",
+plt.title(r"\textbf{Returns in Obstacles Environment}",
           fontsize=24)
 
 # Increase tick font size
@@ -182,3 +183,208 @@ plt.yticks(fontsize=y_bayes_font_size)
 plt.savefig("figures/problem3.png", dpi=600)
 plt.show()
     
+#%% Problem 4
+
+#-----------------------------------------------------------------------------#
+#------------------------------ PLOT 1: HORIZON ------------------------------#
+#-----------------------------------------------------------------------------#
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Read in the data
+logdir = base_dir + 'hw4_q4_reacher_horizon*/events*'
+eventfiles = glob.glob(logdir)
+
+labels = ["horizon = 5", "horizon = 15", "horizon = 30"]
+
+for i, eventfile in enumerate(eventfiles):
+    print(eventfile)
+    # Read in data and plot
+    train_Y, train_std, eval_Y, eval_std = get_results(eventfile)
+    X = np.arange(len(train_Y)) + 1
+    AddBayesPlot(X, eval_Y, eval_std, labels[i], colors[i])
+
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Eval Return}",fontsize=y_bayes_font_size)
+plt.title(r"\textbf{Varying horizon length in Reacher Enviroment}",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/problem4_horizon.png", dpi=600)
+plt.show()
+
+
+#-----------------------------------------------------------------------------#
+#------------------------------ PLOT 2: # of sequences -----------------------#
+#-----------------------------------------------------------------------------#
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Read in the data
+logdir = base_dir + 'hw4_q4_reacher_numseq*/events*'
+eventfiles = glob.glob(logdir)
+
+labels = [r"\# sequences = 100", r"\# sequences = 1000"]
+
+for i, eventfile in enumerate(eventfiles):
+    print(eventfile)
+    # Read in data and plot
+    train_Y, train_std, eval_Y, eval_std = get_results(eventfile)
+    X = np.arange(len(train_Y)) + 1
+    AddBayesPlot(X, eval_Y, eval_std, labels[i], colors[i])
+
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Eval Return}",fontsize=y_bayes_font_size)
+plt.title(r"\textbf{Varying \# of sequences in Reacher Enviroment}",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/problem4_numseq.png", dpi=600)
+plt.show()
+
+
+#-----------------------------------------------------------------------------#
+#------------------------------ PLOT 3: ensemble size ------------------------#
+#-----------------------------------------------------------------------------#
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Read in the data
+logdir = base_dir + 'hw4_q4_reacher_ensemble*/events*'
+eventfiles = glob.glob(logdir)
+
+labels = [r"ensemble = 1", r"ensemble = 3", r"ensemble = 5"]
+
+for i, eventfile in enumerate(eventfiles):
+    print(eventfile)
+    # Read in data and plot
+    train_Y, train_std, eval_Y, eval_std = get_results(eventfile)
+    X = np.arange(len(train_Y)) + 1
+    AddBayesPlot(X, eval_Y, eval_std, labels[i], colors[i])
+
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Eval Return}",fontsize=y_bayes_font_size)
+plt.title(r"\textbf{Varying ensemble size in Reacher Enviroment}",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/problem4_ensemble.png", dpi=600)
+plt.show()
+
+#%% Problem 5
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Read in the data
+logdir = base_dir + 'hw4_q5_*/events*'
+eventfiles = glob.glob(logdir)
+
+labels = ["random", "cem = 2", "cem = 4"]
+
+for i, eventfile in enumerate(reversed(eventfiles)):
+    print(eventfile)
+    # Read in data and plot
+    train_Y, train_std, eval_Y, eval_std = get_results(eventfile)
+    X = np.arange(len(train_Y)) + 1
+    AddBayesPlot(X, eval_Y, eval_std, labels[i], colors[i])
+
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Eval Return}",fontsize=y_bayes_font_size)
+plt.title(r"\textbf{CEM in Cheetah Enviroment}",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/problem5.png", dpi=600)
+plt.show()
+
+#%% Problem 6
+
+# Plot the results 
+plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+
+# Read in the data
+logdir = base_dir + 'hw4_q6_*/events*'
+eventfiles = sorted(glob.glob(logdir))
+eventfiles[2], eventfiles[1] = eventfiles[1], eventfiles[2]
+
+labels = ["Model-free SAC baseline", "Dyna", "MBPO"]
+
+for i, eventfile in enumerate(eventfiles):
+    print(eventfile)
+    # Read in data and plot
+    train_Y, train_std, eval_Y, eval_std = get_results(eventfile)
+    X = np.arange(len(train_Y)) + 1
+    AddBayesPlot(X, eval_Y, eval_std, labels[i], colors[i])
+
+
+# Add a danky legend
+leg = plt.legend(fontsize=legend_bayes_font_size,frameon=True,shadow=True,loc="lower right")
+frame = leg.get_frame()
+frame.set_facecolor('white')
+frame.set_edgecolor('black')
+    
+# xlabel, ylabel, and title 
+plt.xlabel(r'\textbf{Iteration}',fontsize=x_bayes_font_size)
+plt.ylabel(r"\textbf{Average Eval Return}",fontsize=y_bayes_font_size)
+plt.title(r"\textbf{MBPO in Cheetah Enviroment}",
+          fontsize=24)
+
+# Increase tick font size
+plt.xticks(fontsize=x_bayes_font_size)
+plt.yticks(fontsize=y_bayes_font_size)
+
+# Save the figure
+plt.savefig("figures/problem6.png", dpi=600)
+plt.show()
