@@ -14,6 +14,7 @@ from cs285.agents.mbpo_agent import MBPOAgent
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
+from cs285.agents.sac_agent import SACAgent
 
 # register all of our envs
 from cs285.envs import register_envs
@@ -214,9 +215,9 @@ class RL_Trainer(object):
 
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         train_video_paths = None
-        if self.logvideo:
-            print('\nCollecting train rollouts to be used for saving videos...')
-            train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
+        # if self.logvideo:
+        #     print('\nCollecting train rollouts to be used for saving videos...')
+        #     train_video_paths = utils.sample_n_trajectories(self.env, collect_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
 
         if save_expert_data_to_disk and itr == 0:
             with open('expert_data_{}.pkl'.format(self.params['env_name']), 'wb') as file:
