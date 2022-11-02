@@ -8,3 +8,4 @@ hw4/cs285.egg-info/*
 hw4/cs285/*/__pycache__/*
 hw4/cs285/*/*/__pycache__/*
 hw4/data/*
+hw4/figures/*
