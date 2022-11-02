@@ -29,7 +29,7 @@ class MBPOAgent(BaseAgent):
         obs, acs, rewards, next_obs, terminals, image_obs = [], [], [], [], [], []
         for _ in range(rollout_length):
             # get the action from the policy
-            ac = self.mb_agent.actor.get_action(ob) # TODO
+            ac = self.actor.get_action(ob) # TODO
             
             # determine the next observation by averaging the prediction of all the 
             # dynamics models in the ensemble
