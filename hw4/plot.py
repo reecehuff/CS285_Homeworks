@@ -313,7 +313,7 @@ plt.show()
 #%% Problem 5
 
 # Plot the results 
-plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+plt.figure(figsize=(bayes_Fig_size[0]+1,bayes_Fig_size[1]))
 
 # Read in the data
 logdir = base_dir + 'hw4_q5_*/events*'
@@ -352,7 +352,7 @@ plt.show()
 #%% Problem 6
 
 # Plot the results 
-plt.figure(figsize=(bayes_Fig_size[0],bayes_Fig_size[1]))
+plt.figure(figsize=(bayes_Fig_size[0]+1,bayes_Fig_size[1]))
 
 # Read in the data
 logdir = base_dir + 'hw4_q6_*/events*'
