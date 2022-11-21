@@ -10,3 +10,16 @@ hw4/cs285/*/*/__pycache__/*
 hw4/data/*
 hw4/figures/*
 hw5/cs285.egg-info/
+
+hw5/cs285/agents/__pycache__/*
+hw5/cs285/critics/__pycache__/*
+hw5/cs285/envs/__pycache__/*
+hw5/cs285/envs/ant/__pycache__/*
+hw5/cs285/envs/cheetah/__pycache__/*
+hw5/cs285/envs/obstacles/__pycache__/*
+hw5/cs285/envs/pointmass/__pycache__/*
+hw5/cs285/envs/reacher/__pycache__/*
+hw5/cs285/exploration/__pycache__/*
+hw5/cs285/infrastructure/__pycache__/*
+hw5/cs285/policies/__pycache__/*
+hw5/data/*
