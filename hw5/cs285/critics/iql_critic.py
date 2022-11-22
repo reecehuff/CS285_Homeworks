@@ -45,7 +45,8 @@ class IQLCritic(BaseCritic):
         # TODO define value function
         # HINT: see Q_net definition above and optimizer below
         ### YOUR CODE HERE ###
-        self.v_net = None
+        self.v_net = network_initializer(self.ob_dim, 1)
+        self.v_net.to(ptu.device)
 
         self.v_optimizer = self.optimizer_spec.constructor(
             self.v_net.parameters(),
@@ -61,7 +62,10 @@ class IQLCritic(BaseCritic):
         """
         Implement expectile loss on the difference between q and v
         """
-        pass
+        # Calculate the expectile loss
+        indicator = (diff < 0).float()
+        loss = torch.abs(self.iql_expectile - indicator) * (diff**2)
+        return loss.mean()
 
     def update_v(self, ob_no, ac_na):
         """
@@ -69,10 +73,10 @@ class IQLCritic(BaseCritic):
         """
         ob_no = ptu.from_numpy(ob_no)
         ac_na = ptu.from_numpy(ac_na).to(torch.long)
-        
 
         ### YOUR CODE HERE ###
-        value_loss = None
+        advantage = self.estimate_advantage_iql_critic(ob_no, ac_na) # Need to use the target q_net for equation 7 
+        value_loss = self.expectile_loss(advantage)
         
         assert value_loss.shape == ()
         self.v_optimizer.zero_grad()
@@ -95,7 +99,13 @@ class IQLCritic(BaseCritic):
         terminal_n = ptu.from_numpy(terminal_n)
         
         ### YOUR CODE HERE ###
-        loss = None
+        values_t_plus_1 = self.v_net(next_ob_no).flatten().detach() # Make sure v_net is detached from the graph
+        q_values = self.q_net(ob_no) # Need to use q_net for equation 8
+        q_values = q_values.gather(1, ac_na.unsqueeze(1)).squeeze(1)
+        assert q_values.shape == values_t_plus_1.shape
+        assert q_values.shape == reward_n.shape
+        targets = reward_n + self.gamma * (1 - terminal_n) * values_t_plus_1 - q_values
+        loss = torch.mean(targets**2)
 
         assert loss.shape == ()
         self.optimizer.zero_grad()
@@ -117,3 +127,16 @@ class IQLCritic(BaseCritic):
         obs = ptu.from_numpy(obs)
         qa_values = self.q_net(obs)
         return ptu.to_numpy(qa_values)
+
+    def get_qvals_iql_critic(self, obs, action=None, use_v=False):
+        if use_v:
+            q_value = self.v_net(obs)
+        else:
+            qa_values = self.q_net_target(obs)
+            q_value = torch.gather(qa_values, 1, action.type(torch.int64).unsqueeze(1))
+        return q_value
+
+    def estimate_advantage_iql_critic(self, ob_no, ac_na):
+
+        v_pi = self.get_qvals_iql_critic(ob_no, use_v=True)
+        return self.get_qvals_iql_critic(ob_no, ac_na) - v_pi
