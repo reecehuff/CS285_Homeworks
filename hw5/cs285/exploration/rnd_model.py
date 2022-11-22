@@ -53,12 +53,28 @@ class RNDModel(nn.Module, BaseExplorationModel):
         self.f.to(ptu.device)
         self.f_hat.to(ptu.device)
 
+        # New algorithm!
+        self.min_dist_toggle = hparams['use_min_dist']; # True
+        print("min_dist_toggle", self.min_dist_toggle)
+        self.prev_ob = None
+
     def forward(self, ob_no):
         # <DONE>: Get the prediction error for ob_no
         # HINT: Remember to detach the output of self.f!
         f_pred = self.f(ob_no).detach()
         f_hat_pred = self.f_hat(ob_no)
-        error = torch.mean(torch.norm(f_pred - f_hat_pred, dim=1))
+        error = torch.sqrt(torch.mean((f_pred - f_hat_pred) ** 2, dim=1))
+
+        # Implement a new exploration algorithm that defines the error as the distance between the current observation and the previous observation
+        if self.min_dist_toggle is True:
+            if self.prev_ob == None:
+                error = torch.zeros_like(ob_no[:, 0], requires_grad=True)
+            elif self.prev_ob.shape[0] == ob_no.shape[0]:
+                error = (ob_no - self.prev_ob).norm(dim=1)
+                self.prev_ob = ob_no
+            else: 
+                error = torch.zeros_like(ob_no[:, 0], requires_grad=True)
+
         return error
 
     def forward_np(self, ob_no):
@@ -71,10 +87,11 @@ class RNDModel(nn.Module, BaseExplorationModel):
         # Hint: Take the mean prediction error across the batch
         ob_no = ptu.from_numpy(ob_no)
         error = self(ob_no)
-        loss = torch.mean(torch.square(error, dim=1))
+        
+        mean_pred_error = torch.mean(torch.square(error))
 
         self.optimizer.zero_grad()
         mean_pred_error.backward()
         self.optimizer.step()
 
-        return ptu.to_numpy(loss)
+        return ptu.to_numpy(mean_pred_error)

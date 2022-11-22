@@ -74,6 +74,8 @@ def main():
 
     parser.add_argument('--use_boltzmann', action='store_true')
 
+    parser.add_argument('--use_min_dist', action='store_true')
+
     args = parser.parse_args()
 
     # convert to dictionary
