@@ -10,6 +10,8 @@ hw4/cs285/*/*/__pycache__/*
 hw4/data/*
 hw4/figures/*
 hw5/cs285.egg-info/
+hw5/figures/*
+
 
 hw5/cs285/agents/__pycache__/*
 hw5/cs285/critics/__pycache__/*
